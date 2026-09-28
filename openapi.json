@@ -1,0 +1,47 @@
+{
+  "openapi": "3.1.0",
+  "info": { "title": "Meeting Memory API", "version": "1.0.0", "description": "Private memory for one person. Lists are capped at 100 results; global search at 50. Search is case-insensitive substring matching for ASCII text." },
+  "servers": [{ "url": "https://meeting-memory-rho.vercel.app" }],
+  "security": [{ "bearerAuth": [] }],
+  "paths": {
+    "/health": { "get": { "summary": "Health check", "security": [], "responses": { "200": { "description": "Service is reachable", "content": { "application/json": { "schema": { "type": "object", "properties": { "ok": { "const": true } }, "required": ["ok"] } } } } } } },
+    "/openapi.json": { "get": { "summary": "This OpenAPI document", "security": [], "responses": { "200": { "description": "OpenAPI 3.1 document" } } } },
+    "/people": {
+      "get": { "summary": "List people or search names and companies", "parameters": [{ "$ref": "#/components/parameters/optionalQuery" }], "responses": { "200": { "description": "People, alphabetically", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Person" } } } } }, "401": { "$ref": "#/components/responses/Unauthorized" } } },
+      "post": { "summary": "Create a person before saving meetings with them", "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PersonInput" } } } }, "responses": { "201": { "description": "Created person", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Person" } } } }, "401": { "$ref": "#/components/responses/Unauthorized" } } }
+    },
+    "/people/{id}": {
+      "get": { "summary": "Get one person and their research", "parameters": [{ "$ref": "#/components/parameters/id" }], "responses": { "200": { "description": "Person", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Person" } } } }, "404": { "$ref": "#/components/responses/NotFound" } } },
+      "patch": { "summary": "Update a person's metadata or research", "parameters": [{ "$ref": "#/components/parameters/id" }], "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PersonPatch" } } } }, "responses": { "200": { "description": "Updated person", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Person" } } } }, "404": { "$ref": "#/components/responses/NotFound" } } }
+    },
+    "/people/{id}/meetings": { "get": { "summary": "List a person's meetings, newest first; optional search includes their name, company, summaries and transcripts", "parameters": [{ "$ref": "#/components/parameters/id" }, { "$ref": "#/components/parameters/optionalQuery" }], "responses": { "200": { "description": "Meetings without full transcripts", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/MeetingListItem" } } } } }, "404": { "$ref": "#/components/responses/NotFound" } } } },
+    "/meetings": { "post": { "summary": "Save a transcript and optional summary for an existing person", "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/MeetingInput" } } } }, "responses": { "201": { "description": "Created meeting", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Meeting" } } } }, "404": { "$ref": "#/components/responses/NotFound" } } } },
+    "/meetings/{id}": { "get": { "summary": "Get the full meeting, including transcript", "parameters": [{ "$ref": "#/components/parameters/id" }], "responses": { "200": { "description": "Meeting", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Meeting" } } } }, "404": { "$ref": "#/components/responses/NotFound" } } } },
+    "/meetings/{id}/action-items": {
+      "get": { "summary": "Get a meeting's action items", "parameters": [{ "$ref": "#/components/parameters/id" }], "responses": { "200": { "description": "Action items", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/ActionItem" } } } } }, "404": { "$ref": "#/components/responses/NotFound" } } },
+      "post": { "summary": "Add an action item to a meeting", "parameters": [{ "$ref": "#/components/parameters/id" }], "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ActionItemInput" } } } }, "responses": { "201": { "description": "Created action item", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ActionItem" } } } }, "404": { "$ref": "#/components/responses/NotFound" } } }
+    },
+    "/search": { "get": { "summary": "Search all people and meetings by person name, company, summary or transcript", "parameters": [{ "name": "q", "in": "query", "required": true, "description": "Literal text to find", "schema": { "type": "string", "minLength": 1 } }], "responses": { "200": { "description": "Matching people and meetings (meeting transcripts omitted; fetch by ID)", "content": { "application/json": { "schema": { "type": "object", "properties": { "people": { "type": "array", "items": { "$ref": "#/components/schemas/Person" } }, "meetings": { "type": "array", "items": { "$ref": "#/components/schemas/MeetingListItem" } } }, "required": ["people", "meetings"] } } } } } } }
+  },
+  "components": {
+    "securitySchemes": { "bearerAuth": { "type": "http", "scheme": "bearer", "description": "Send MEMORY_API_KEY as Authorization: Bearer <key>. Never place it in a URL." } },
+    "parameters": {
+      "id": { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
+      "optionalQuery": { "name": "q", "in": "query", "required": false, "description": "Literal substring to find", "schema": { "type": "string" } }
+    },
+    "responses": {
+      "Unauthorized": { "description": "Missing or invalid bearer key" },
+      "NotFound": { "description": "Person or meeting not found" }
+    },
+    "schemas": {
+      "PersonInput": { "type": "object", "properties": { "name": { "type": "string" }, "company": { "type": ["string", "null"] }, "role": { "type": ["string", "null"] }, "email": { "type": ["string", "null"] }, "linkedinUrl": { "type": ["string", "null"] }, "research": { "type": ["string", "null"] } }, "required": ["name"] },
+      "PersonPatch": { "type": "object", "properties": { "name": { "type": "string" }, "company": { "type": ["string", "null"] }, "role": { "type": ["string", "null"] }, "email": { "type": ["string", "null"] }, "linkedinUrl": { "type": ["string", "null"] }, "research": { "type": ["string", "null"] } } },
+      "Person": { "allOf": [{ "$ref": "#/components/schemas/PersonInput" }, { "type": "object", "properties": { "id": { "type": "string", "format": "uuid" }, "createdAt": { "type": "string", "format": "date-time" }, "updatedAt": { "type": "string", "format": "date-time" } }, "required": ["id", "createdAt", "updatedAt"] }] },
+      "MeetingInput": { "type": "object", "properties": { "personId": { "type": "string", "format": "uuid" }, "title": { "type": ["string", "null"] }, "startedAt": { "type": "string", "format": "date-time" }, "endedAt": { "type": ["string", "null"], "format": "date-time" }, "summary": { "type": ["string", "null"] }, "transcript": { "type": "string", "description": "Full plain-text transcript" } }, "required": ["personId", "startedAt", "transcript"] },
+      "MeetingListItem": { "type": "object", "properties": { "id": { "type": "string", "format": "uuid" }, "personId": { "type": "string", "format": "uuid" }, "title": { "type": ["string", "null"] }, "startedAt": { "type": "string", "format": "date-time" }, "endedAt": { "type": ["string", "null"], "format": "date-time" }, "summary": { "type": ["string", "null"] }, "createdAt": { "type": "string", "format": "date-time" } }, "required": ["id", "personId", "startedAt", "createdAt"] },
+      "Meeting": { "allOf": [{ "$ref": "#/components/schemas/MeetingListItem" }, { "type": "object", "properties": { "transcript": { "type": "string" } }, "required": ["transcript"] }] },
+      "ActionItemInput": { "type": "object", "properties": { "text": { "type": "string" }, "owner": { "type": "string", "enum": ["me", "them"] } }, "required": ["text", "owner"] },
+      "ActionItem": { "allOf": [{ "$ref": "#/components/schemas/ActionItemInput" }, { "type": "object", "properties": { "id": { "type": "string", "format": "uuid" }, "meetingId": { "type": "string", "format": "uuid" }, "completed": { "type": "boolean" }, "createdAt": { "type": "string", "format": "date-time" } }, "required": ["id", "meetingId", "completed", "createdAt"] }] }
+    }
+  }
+}
