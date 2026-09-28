@@ -26,6 +26,7 @@ cat > "$app_dir/Contents/Info.plist" <<'PLIST'
   <key>LSMinimumSystemVersion</key><string>26.0</string>
   <key>NSHighResolutionCapable</key><true/>
   <key>NSMicrophoneUsageDescription</key><string>MindDock records your voice during meetings.</string>
+  <key>NSScreenCaptureUsageDescription</key><string>MindDock captures call audio to transcribe meetings.</string>
   <key>NSSpeechRecognitionUsageDescription</key><string>MindDock transcribes meeting audio on this Mac.</string>
 </dict></plist>
 PLIST
@@ -50,6 +51,7 @@ with os.fdopen(fd, "w", encoding="utf-8") as config_file:
 os.chmod(sys.argv[2], 0o600)
 PY
 
-codesign --force --sign - "$app_dir" >/dev/null
+signing_identity="$(security find-identity -v -p codesigning | sed -n 's/^[[:space:]]*[0-9]*) \([A-F0-9]\{40\}\) .*/\1/p' | head -1)"
+codesign --force --sign "${signing_identity:--}" "$app_dir" >/dev/null
 touch "$app_dir"
 echo "MindDock installed in ~/Applications. Search for MindDock in Spotlight to open it."
